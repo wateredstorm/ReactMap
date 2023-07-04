@@ -1,6 +1,6 @@
 /* eslint-disable no-nested-ternary */
 import ReactGA from 'react-ga4'
-import SunCalc from 'suncalc'
+import { getTimes } from 'suncalc'
 
 import formatInterval from './functions/formatInterval'
 import getProperName from './functions/getProperName'
@@ -76,7 +76,13 @@ export default class Utility {
 
   static timeCheck(lat, lon) {
     const date = new Date()
-    const times = SunCalc.getTimes(date, lat, lon)
+    const times = getTimes(date, lat, lon)
+
+    console.log({ date, times })
+    console.log('Dawn', date > times.dawn && date < times.sunriseEnd)
+    console.log('Dusk', date > times.dusk && date < times.night)
+    console.log('Night', date > times.night || date < times.nightEnd)
+
     switch (true) {
       case date > times.dawn && date < times.sunriseEnd:
         return 'dawn'
