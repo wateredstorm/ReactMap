@@ -5,9 +5,11 @@ import TableCell from '@mui/material/TableCell'
 import Checkbox from '@mui/material/Checkbox'
 import IconButton from '@mui/material/IconButton'
 import Button from '@mui/material/Button'
-import Grid2 from '@mui/material/Unstable_Grid2'
+import { useTheme, useMediaQuery } from '@mui/material/'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
+import Grid2 from '@mui/material/Unstable_Grid2'
 
+import Utility from '@services/Utility'
 import { useDeepStore, useStorage } from '@hooks/useStorage'
 import { useMemory } from '@hooks/useMemory'
 import { useMap } from 'react-leaflet'
@@ -22,6 +24,7 @@ import { useMap } from 'react-leaflet'
  *  colSpan?: number
  * }} props
  */
+
 export function AreaChild({
   name,
   feature,
@@ -30,6 +33,8 @@ export function AreaChild({
   borderRight,
   colSpan = 1,
 }) {
+  const theme = useTheme()
+  const isXSmall = useMediaQuery(theme.breakpoints.down('xs'))
   const scanAreas = useStorage((s) => s.filters?.scanAreas?.filter?.areas)
   const zoom = useMemory((s) => s.config.general.scanAreasZoom)
   const expandAllScanAreas = useMemory((s) => s.config.misc.expandAllScanAreas)
@@ -40,23 +45,35 @@ export function AreaChild({
 
   if (!scanAreas) return null
 
-  const hasAll =
-    childAreas &&
+  const hasAll = 
+    childAreas && 
     childAreas.every(
-      (c) => c.properties.manual || scanAreas.includes(c.properties.key),
-    )
-  const hasSome =
+    (c) => c.properties.manual || scanAreas.includes(c.properties.key),
+  )
+  const hasSome = 
     childAreas && childAreas.some((c) => scanAreas.includes(c.properties.key))
-  const hasManual =
+  const hasManual = 
     feature?.properties?.manual || childAreas.every((c) => c.properties.manual)
   const color =
     hasManual || (name ? !childAreas.length : !feature.properties.name)
       ? 'transparent'
       : 'none'
 
-  const nameProp =
+  const nameProp = 
     name || feature?.properties?.formattedName || feature?.properties?.name
   const hasExpand = name && !expandAllScanAreas
+  const isCheckboxDisabled = (name ? !childAreas.length : !feature.properties.name) || hasManual;
+  const checkboxColor = color;
+
+  const handleMapFlyTo = () => {
+    if (feature?.properties?.center) {
+      map.flyTo(
+        feature.properties.center,
+        feature.properties.zoom || zoom,
+      )
+    }
+  };
+
   return (
     <TableCell
       colSpan={colSpan}
@@ -64,90 +81,130 @@ export function AreaChild({
         bgcolor: theme.palette.background.paper,
         p: 0,
         borderRight: borderRight ? 1 : 'inherit',
-        borderColor:
-          theme.palette.grey[theme.palette.mode === 'dark' ? 800 : 200],
+        borderColor: theme.palette.grey[theme.palette.mode === 'dark' ? 800 : 200],
       })}
     >
-      <Grid2
-        container
-        alignItems="center"
-        justifyContent="space-between"
-        component={Button}
-        fullWidth
-        borderRadius={0}
-        variant="text"
-        color="inherit"
-        size="small"
-        wrap="nowrap"
-        onClick={() => {
-          if (feature?.properties?.center) {
-            map.flyTo(
-              feature.properties.center,
-              feature.properties.zoom || zoom,
-            )
-          }
-        }}
-        sx={(theme) => ({
-          py: name ? 'inherit' : 0,
-          minHeight: 36,
-          textTransform: 'none',
-          '&:hover': {
-            backgroundColor: theme.palette.action.hover,
-          },
-        })}
+      <Grid2 container spacing={isXSmall ? 1 : 2}
+        onClick={handleMapFlyTo}
       >
-        {!hasExpand && hasManual ? null : (
+        <Grid2 item xs={12} sm={6}>
           <Checkbox
             size="small"
             color="secondary"
             indeterminate={name ? hasSome && !hasAll : false}
             checked={name ? hasAll : scanAreas.includes(feature.properties.key)}
             onClick={(e) => e.stopPropagation()}
-            onChange={() =>
+            onChange={() => 
               setAreas(
-                name
-                  ? childAreas.map((c) => c.properties.key)
-                  : feature.properties.key,
+                name ? childAreas.map((c) => c.properties.key) : [feature.properties.key],
                 allAreas,
-                name ? hasSome : false,
+                name ? !hasAll : null,
               )
             }
             sx={{
               p: 1,
-              color,
+              color: checkboxColor,
               '&.Mui-checked': {
-                color,
+                color: checkboxColor,
               },
               '&.Mui-disabled': {
-                color,
+                color: checkboxColor,
               },
             }}
-            disabled={
-              (name ? !childAreas.length : !feature.properties.name) ||
-              hasManual
-            }
+            disabled={isCheckboxDisabled}
           />
-        )}
-        <Typography
-          variant={name ? 'h6' : 'caption'}
-          align="center"
-          style={{ whiteSpace: 'pre-wrap', flexGrow: 1 }}
-        >
-          {nameProp || <>&nbsp;</>}
-        </Typography>
-        {hasExpand && (
-          <IconButton
-            component="span"
-            className={open === name ? 'expanded' : 'collapsed'}
-            onClick={(e) => {
-              e.stopPropagation()
-              return setOpen((prev) => (prev === name ? '' : name))
-            }}
+          <Typography
+            variant={name ? 'h6' : 'caption'}
+            align="center"
+            style={{ whiteSpace: 'pre-wrap', flexGrow: 1 }}
           >
-            <ExpandMoreIcon />
-          </IconButton>
+            {nameProp || <>&nbsp;</>}
+          </Typography>
+          {hasExpand && (
+            <IconButton
+              component="span"
+              className={open === name ? 'expanded' : 'collapsed'}
+              onClick={(e) => {
+                e.stopPropagation()
+                setOpen((prev) => (prev === name ? '' : name))
+              }}
+            >
+              <ExpandMoreIcon />
+            </IconButton>
+          )}
+        </Grid2>
+
+        {isXSmall && (
+          <Grid2
+            container
+            alignItems="center"
+            justifyContent="space-between"
+            component={Button}
+            fullWidth
+            borderRadius={0}
+            variant="text"
+            color="inherit"
+            size="small"
+            wrap="nowrap"
+            onClick={() => handleMapFlyTo()}
+            sx={(theme) => ({
+              py: name ? 'inherit' : 0,
+              minHeight: 36,
+              textTransform: 'none',
+              '&:hover': {
+                backgroundColor: theme.palette.action.hover,
+              },
+            })}
+          >
+            {!hasExpand && hasManual ? null : (
+              <Checkbox
+                size="small"
+                color="secondary"
+                indeterminate={name ? hasSome && !hasAll : false}
+                checked={name ? hasAll : scanAreas.includes(feature.properties.key)}
+                onClick={(e) => e.stopPropagation()}
+                onChange={() =>
+                  setAreas(
+                    name ? childAreas.map((c) => c.properties.key) : feature.properties.key,
+                    allAreas,
+                    name ? hasSome : false,
+                  )
+                }
+                sx={{
+                  p: 1,
+                  color: checkboxColor,
+                  '&.Mui-checked': {
+                    color: checkboxColor,
+                  },
+                  '&.Mui-disabled': {
+                    color: checkboxColor,
+                  },
+                }}
+                disabled={isCheckboxDisabled}
+              />
+            )}
+            <Typography
+              variant={name ? 'h6' : 'caption'}
+              align="center"
+              style={{ whiteSpace: 'pre-wrap', flexGrow: 1 }}
+            >
+              {nameProp || <>&nbsp;</>}
+            </Typography>
+            {hasExpand && (
+              <IconButton
+                component="span"
+                className={open === name ? 'expanded' : 'collapsed'}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setOpen((prev) => (prev === name ? '' : name))
+                }}
+              >
+                <ExpandMoreIcon />
+              </IconButton>
+            )}
+          </Grid2>
         )}
       </Grid2>
     </TableCell>
-  )
+  );
 }
